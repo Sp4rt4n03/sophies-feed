@@ -1,0 +1,39 @@
+  name: pinterest-feed
+
+  on:
+    schedule:
+      - cron: "0 */6 * * *"
+    workflow_dispatch: {}
+
+  permissions:
+    contents: write
+
+  concurrency:
+    group: feed
+    cancel-in-progress: true
+
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+
+        - uses: actions/setup-node@v4
+          with:
+            node-version: "20"
+
+        - name: Genereer feed
+          env:
+            SHOPIFY_ADMIN_TOKEN: ${{ secrets.SHOPIFY_ADMIN_TOKEN }}
+            FEED_TAG: ${{ vars.FEED_TAG }}
+            MAX_PRODUCTS: ${{ vars.MAX_PRODUCTS }}
+            OUT: "./pinterest-feed.tsv"
+          run: node pinterest-feed.mjs
+
+        - name: Commit feed
+          run: |
+            git config user.name "feed-bot"
+            git config user.email "feed-bot@users.noreply.github.com"
+            git add pinterest-feed.tsv
+            git commit -m "update feed $(date -u +%FT%TZ)" || echo "geen wijziging"
+            git push
